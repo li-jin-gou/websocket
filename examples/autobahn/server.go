@@ -1,6 +1,9 @@
-// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
+// Copyright 2017 The Gorilla WebSocket Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+//
+// This file may have been modified by CloudWeGo authors. All CloudWeGo
+// Modifications are Copyright 2022 CloudWeGo Authors.
 
 // Command server is a test server for the Autobahn WebSockets Test Suite.
 package main
@@ -16,30 +19,30 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/cloudwego/hertz/pkg/protocol"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/hertz-contrib/websocket"
 )
 
-var upgrader = websocket.Upgrader{
+var upgrader = websocket.HertzUpgrader{
 	ReadBufferSize:    4096,
 	WriteBufferSize:   4096,
 	EnableCompression: true,
-	CheckOrigin: func(req *protocol.Request) bool {
+	CheckOrigin: func(ctx *app.RequestContext) bool {
 		return true
 	},
 }
 
 // echoCopy echoes messages from the client using io.Copy.
-func echoCopy(c *app.RequestContext, writerOnly bool) {
-	err := upgrader.Upgrade(c, func(conn *websocket.Conn) error {
+func echoCopy(ctx *app.RequestContext, writerOnly bool) {
+	err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
+		defer conn.Close()
 		for {
 			mt, r, err := conn.NextReader()
 			if err != nil {
 				if err != io.EOF {
-					log.Println("NextReader:1，", err)
+					log.Println("NextReader:", err)
 				}
-				return err
+				return
 			}
 			if mt == websocket.TextMessage {
 				r = &validator{r: r}
@@ -47,7 +50,7 @@ func echoCopy(c *app.RequestContext, writerOnly bool) {
 			w, err := conn.NextWriter(mt)
 			if err != nil {
 				log.Println("NextWriter:", err)
-				return err
+				return
 			}
 			if mt == websocket.TextMessage {
 				r = &validator{r: r}
@@ -64,12 +67,12 @@ func echoCopy(c *app.RequestContext, writerOnly bool) {
 						time.Time{})
 				}
 				log.Println("Copy:", err)
-				return err
+				return
 			}
 			err = w.Close()
 			if err != nil {
 				log.Println("Close:", err)
-				return err
+				return
 			}
 		}
 	})
@@ -89,15 +92,16 @@ func echoCopyFull(_ context.Context, c *app.RequestContext) {
 
 // echoReadAll echoes messages from the client by reading the entire message
 // with ioutil.ReadAll.
-func echoReadAll(c *app.RequestContext, writeMessage, writePrepared bool) {
-	err := upgrader.Upgrade(c, func(conn *websocket.Conn) error {
+func echoReadAll(ctx *app.RequestContext, writeMessage, writePrepared bool) {
+	err := upgrader.Upgrade(ctx, func(conn *websocket.Conn) {
+		defer conn.Close()
 		for {
 			mt, b, err := conn.ReadMessage()
 			if err != nil {
 				if err != io.EOF {
-					log.Println("NextReader:2，", err)
+					log.Println("NextReader:", err)
 				}
-				return err
+				return
 			}
 			if mt == websocket.TextMessage {
 				if !utf8.Valid(b) {
@@ -117,7 +121,7 @@ func echoReadAll(c *app.RequestContext, writeMessage, writePrepared bool) {
 					pm, err := websocket.NewPreparedMessage(mt, b)
 					if err != nil {
 						log.Println("NewPreparedMessage:", err)
-						return err
+						return
 					}
 					err = conn.WritePreparedMessage(pm)
 					if err != nil {
@@ -128,15 +132,15 @@ func echoReadAll(c *app.RequestContext, writeMessage, writePrepared bool) {
 				w, err := conn.NextWriter(mt)
 				if err != nil {
 					log.Println("NextWriter:", err)
-					return err
+					return
 				}
 				if _, err := w.Write(b); err != nil {
 					log.Println("Writer:", err)
-					return err
+					return
 				}
 				if err := w.Close(); err != nil {
 					log.Println("Close:", err)
-					return err
+					return
 				}
 			}
 		}
@@ -161,11 +165,11 @@ func echoReadAllWritePreparedMessage(_ context.Context, c *app.RequestContext) {
 
 func serveHome(_ context.Context, c *app.RequestContext) {
 	if string(c.URI().Path()) != "/" {
-		_ = c.AbortWithError(http.StatusNotFound, errors.New("Not found."))
+		_ = c.AbortWithError(http.StatusNotFound, errors.New("not found"))
 		return
 	}
 	if !c.IsGet() {
-		_ = c.AbortWithError(http.StatusMethodNotAllowed, errors.New("Method not allowed"))
+		_ = c.AbortWithError(http.StatusMethodNotAllowed, errors.New("method not allowed"))
 		return
 	}
 	c.Response.Header.Set("Content-Type", "text/html; charset=utf-8")
@@ -184,17 +188,11 @@ func main() {
 	h.GET("/r", echoReadAllWriter)
 	h.GET("/m", echoReadAllWriteMessage)
 	h.GET("/p", echoReadAllWritePreparedMessage)
-	// h.GET("/ws", func() {
-	//
-	// 	err := upgrader.Upgrade(c, func(appCtx *app.RequestContext, conn *websocket.Conn) {
-	//
-	// 	})
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		return
-	// 	}
-	//
-	// })
+
+	h.NoRoute(func(c context.Context, ctx *app.RequestContext) {
+		ctx.AbortWithMsg("Unsupported path", consts.StatusNotFound)
+	})
+
 	h.Spin()
 }
 

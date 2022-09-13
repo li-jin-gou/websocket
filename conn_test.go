@@ -1,6 +1,9 @@
-// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
+// Copyright 2017 The Gorilla WebSocket Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+//
+// This file may have been modified by CloudWeGo authors. All CloudWeGo
+// Modifications are Copyright 2022 CloudWeGo Authors..
 
 package websocket
 
@@ -59,7 +62,7 @@ func TestFraming(t *testing.T) {
 		0, 1, 2, 124, 125, 126, 127, 128, 129, 65534, 65535,
 		// 65536, 65537
 	}
-	var readChunkers = []struct {
+	readChunkers := []struct {
 		name string
 		f    func(io.Reader) io.Reader
 	}{
@@ -71,7 +74,7 @@ func TestFraming(t *testing.T) {
 	for i := range writeBuf {
 		writeBuf[i] = byte(i)
 	}
-	var writers = []struct {
+	writers := []struct {
 		name string
 		f    func(w io.Writer, n int) (int, error)
 	}{
@@ -307,7 +310,6 @@ func (ew errorWriter) Write(p []byte) (int, error) { return 0, errors.New("error
 // TestWriteBufferPoolError ensures that buffer is returned to pool after error
 // on write.
 func TestWriteBufferPoolError(t *testing.T) {
-
 	// Part 1: Test NextWriter/Write/Close
 
 	var pool simpleBufferPool

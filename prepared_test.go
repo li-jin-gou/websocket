@@ -1,6 +1,9 @@
 // Copyright 2017 The Gorilla WebSocket Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+//
+// This file may have been modified by CloudWeGo authors. All CloudWeGo
+// Modifications are Copyright 2022 CloudWeGo Authors.
 
 package websocket
 
@@ -34,7 +37,7 @@ var preparedMessageTests = []struct {
 
 func TestPreparedMessage(t *testing.T) {
 	for _, tt := range preparedMessageTests {
-		var data = []byte("this is a test")
+		data := []byte("this is a test")
 		var buf bytes.Buffer
 		c := newTestConn(nil, &buf, tt.isServer)
 		if tt.enableWriteCompression {
